@@ -6,6 +6,21 @@ The reference implementation is in `../nsoftware-mcp`. The steps below reproduce
 
 ---
 
+## Before you add a tool
+
+Ask whether the tool needs to exist at all.
+
+Prefer a small set of composable primitives (search, read, list) over a large set of query-specific shortcuts. Each shortcut tool you add relieves the agent of having to reason — it gets an answer handed to it rather than working one out. Over many interactions that compounds: agents with fewer tools develop sharper retrieval strategies.
+
+Concrete cases to skip:
+- **Single-record lookup** — "get item by ID", "get the latest entry". The agent can list or search and filter.
+- **Aggregations derivable from reads** — "count items by category", "summarise recent activity". If the data is queryable via a search/list primitive, an extra aggregation tool adds a crutch.
+- **Filtered list variants** — separate tools for "list active items" vs. "list archived items". Use an optional filter parameter on the main list tool instead.
+
+If the new tool gives the agent access to data it genuinely cannot reach via existing tools, add it. If it just saves the agent one query call, skip it.
+
+---
+
 ## Overview
 
 The pattern works like this:

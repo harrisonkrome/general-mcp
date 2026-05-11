@@ -14,6 +14,24 @@ Reference implementation: `../xmlui-mcp`.
 
 ---
 
+## Before you add a tool
+
+Ask whether the tool needs to exist at all.
+
+Prefer a small set of composable primitives (search, read, list) over a large set of path-specific shortcuts. Each shortcut tool you add relieves the agent of having to reason — it gets an answer handed to it rather than working one out. Over many interactions that compounds: agents with fewer tools develop sharper retrieval strategies.
+
+Concrete cases to skip:
+- **Named-item lookup** — "get docs for component X by name". The agent can search or list to find the file path, then read it.
+- **Section-scoped variants** — separate search/list tools per content section. An optional scope parameter on the main search tool achieves the same thing with one fewer tool.
+- **Aggregations derivable from reads** — "list all tags", "summarise recent activity". If the data is in the files, search and read are sufficient.
+- **UI side-effects** — "open this file in the editor". Side-effects don't belong in a read-only information layer unless the product explicitly requires them.
+
+If the new tool gives the agent access to data it genuinely cannot reach via existing tools — for example, an entirely separate directory tree — add it. If it just saves the agent one search call, skip it.
+
+**Core set for most projects:** `list`, `read_file`, `search`. Start there. Add more only when the agent demonstrably cannot answer a question with those three.
+
+---
+
 ## Overview of changes
 
 | What | Where |
@@ -22,11 +40,11 @@ Reference implementation: `../xmlui-mcp`.
 | Add content root to `ServerConfig` | `pkg/<yourproject>mcp/server.go` |
 | Add path resolver | new `server/paths.go` |
 | Add list tool | new `server/list_<content>.go` |
-| Add named-item lookup tool | new `server/<content>_docs.go` |
 | Add read-file tool | new `server/read_file.go` |
 | Add search tool | new `server/search.go` |
-| Add section-scoped search/list tools | new `server/<section>.go` |
-| Add external content search tool (optional) | new `server/examples.go` |
+| Add named-item lookup tool *(optional — see design note)* | new `server/<content>_docs.go` |
+| Add section-scoped search/list tools *(optional — see design note)* | new `server/<section>.go` |
+| Add external content search tool *(optional — separate tree only)* | new `server/examples.go` |
 | Add session management tools | `pkg/<yourproject>mcp/server.go` (inline) |
 | Auto-inject rules into default session at startup | `pkg/<yourproject>mcp/server.go` |
 | Wire all tools in `setupTools()` | `pkg/<yourproject>mcp/server.go` |
@@ -219,7 +237,11 @@ func NewReadFileTool(rootDir string) (mcp.Tool, func(context.Context, mcp.CallTo
 
 ---
 
-## Step 4a — Add a named-item lookup tool
+## Step 4a — Named-item lookup tool *(optional — design note)*
+
+**Consider skipping this.** A named-item lookup tool takes a *name* and returns the corresponding doc directly. That convenience comes at a cost: the agent never learns to search or list for the file itself. If `search` and `list` + `read_file` already cover the use case, adding this tool is a shortcut that reduces the agent's reasoning.
+
+Add it only if your content has no reliable filename-to-name mapping and the path discovery cost is genuinely prohibitive.
 
 The read-file tool takes a *path*. A named-item lookup tool takes a *name* and returns the corresponding doc. This is the pattern behind `xmlui_component_docs`: the AI calls it with `component: "Button"` and gets the Button documentation without knowing its path on disk.
 
@@ -351,9 +373,13 @@ Then replace the handler body with a call to `ExecuteMediatedSearch`, passing a 
 
 ---
 
-## Step 5a — Add section-scoped search and list tools
+## Step 5a — Section-scoped search and list tools *(optional — design note)*
 
-When your content has distinct sections, create a dedicated search tool (and optionally a list tool) per section rather than making the AI pass a filter. Each is a thin wrapper around the mediator with `Roots`, `SectionKeys`, and `Classifier` scoped to one directory. `xmlui-mcp` has `xmlui_list_howto` and `xmlui_search_howto` in `server/howto.go`.
+**Consider skipping these.** Section-scoped tools are thin wrappers that restrict the main search to one subdirectory. An optional `section` parameter on the main search tool achieves the same result with one fewer tool per section. The agent that learns to pass `section: "howto"` to the main search is doing the same reasoning it will need for every future query; the agent handed a dedicated `search_howto` tool never develops that habit.
+
+Add section-scoped tools only when sections have fundamentally different content types that a unified search handles poorly (e.g. source code vs. prose) and there is measurable benefit to splitting.
+
+When your content has distinct sections, you can create a dedicated search tool (and optionally a list tool) per section. Each is a thin wrapper around the mediator with `Roots`, `SectionKeys`, and `Classifier` scoped to one directory. `xmlui-mcp` has `xmlui_list_howto` and `xmlui_search_howto` in `server/howto.go`.
 
 **List variant** — walks the section directory and returns one title per file:
 
