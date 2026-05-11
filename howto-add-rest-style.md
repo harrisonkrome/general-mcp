@@ -16,6 +16,21 @@ The `MCPServer` in `pkg/obsidianmcp/server.go` calls the constructor in `setupTo
 
 ---
 
+## Before you add a tool
+
+Ask whether the tool needs to exist at all.
+
+Prefer a small set of composable primitives (search, read, list) over a large set of endpoint-specific shortcuts. Each shortcut tool you add relieves the agent of having to reason — it gets an answer handed to it rather than working one out. Over many interactions that compounds: agents with fewer tools develop sharper retrieval strategies.
+
+Concrete cases to skip:
+- **Single well-known resource** — "get today's note", "get the active document". The agent can search or list to find these.
+- **Aggregations derivable from reads** — "list all tags", "summarise recent activity". If the data is in the documents, search and read are sufficient.
+- **UI side-effects** — "open this note in the editor". Side-effects don't belong in a read-only information layer unless the product explicitly requires them.
+
+If the new tool makes the agent smarter by giving it access to data it genuinely cannot reach via existing tools, add it. If it just saves the agent one search call, skip it.
+
+---
+
 ## Step 1 — Create the tool file
 
 Create `server/<name>.go`. Minimal skeleton:
@@ -69,7 +84,7 @@ func NewMyTool(client *ObsidianClient) (mcp.Tool, func(context.Context, mcp.Call
 
 ### Tools without parameters
 
-When a tool has no input (e.g. `obsidian_active_note`, `obsidian_list_tags`), omit all `mcp.WithString` calls and skip parameter validation:
+When a tool has no input, omit all `mcp.WithString` calls and skip parameter validation:
 
 ```go
 func NewMyNoParamTool(client *ObsidianClient) (mcp.Tool, func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error)) {

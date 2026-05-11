@@ -34,6 +34,19 @@ server/analytics.go              WithAnalytics / WithSearchAnalytics middleware 
 server/logger.go                 File-based debug log (general-mcp-server.log)
 ```
 
+### Tool design philosophy
+
+Expose the **minimum set of general-purpose tools** and let the agent reason its way to specific answers. Do not mirror the source API 1:1.
+
+**Good:** search, read, list — composable primitives the agent can combine.
+
+**Avoid:**
+- Shortcut tools that fetch a single well-known resource (e.g. "get today's note", "get the active document"). The agent can search or list to find these itself, and doing so builds better reasoning habits.
+- Aggregation tools that summarise data the agent can derive from reads (e.g. "list all tags"). If the data is in the documents, search and read are enough.
+- Side-effect tools that open UI or trigger state changes unless that is an explicit product requirement — these don't belong in a read-only information layer.
+
+The fewer tools an agent has, the more it learns to use each one well. Every shortcut tool you add is a crutch that prevents that learning.
+
 ### Transport modes
 
 - **Stdio** (default): used by Claude Desktop, Cursor, VS Code MCP extensions
